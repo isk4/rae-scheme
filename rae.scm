@@ -3,43 +3,42 @@
 
 (define input (car (vector->list (current-command-line-arguments))))
 
-(define get-char-index (lambda (char str)
+(define get-byte-index (lambda (byte bytes)
   (cond
-    ((string=? str "") 1)
-    ((eqv? (string-ref str 0) char) 0)
-    (else (+ 1 (get-char-index char (substring str 1 (string-length str))))))))
+    ((bytes=? bytes #"") 1)
+    ((eqv? (bytes-ref bytes 0) byte) 0)
+    (else (+ 1 (get-byte-index byte (subbytes bytes 1 (bytes-length bytes))))))))
 
-(define get-str-index (lambda (str1 str2)
+(define get-bytes-index (lambda (bytes1 bytes2)
   (let
-    ((str1-length (string-length str1))
-    (str2-length (string-length str2)))
+    ((bytes1-length (bytes-length bytes1))
+    (bytes2-length (bytes-length bytes2)))
     (cond
-      ((> str1-length str2-length) str2-length)
-      ((string=? str1 (substring str2 0 str1-length)) 0)
-      (else (+ 1 (get-str-index str1 (substring str2 1 str2-length))))))))
+      ((> bytes1-length bytes2-length) bytes2-length)
+      ((bytes=? bytes1 (subbytes bytes2 0 bytes1-length)) 0)
+      (else (+ 1 (get-bytes-index bytes1 (subbytes bytes2 1 bytes2-length))))))))
 
 (define get-page (lambda (word)
-  (bytes->string/utf-8
     (response-body
-      (get (string-append "https://dle.rae.es/" word "?m=form"))))))
+      (get (string-append "https://dle.rae.es/" word "?m=form")))))
 
-(define remove-tags (lambda (text)
+(define remove-tags (lambda (bytes)
   (let
-    ((<-index (get-char-index #\< text))
-    (>-index (get-char-index #\> text))
-    (text-length (string-length text)))
+    ((<-index (get-byte-index 60 bytes))
+    (>-index (get-byte-index 62 bytes))
+    (text-length (bytes-length bytes)))
     (cond
-      ((string=? "" text) "")
-      ((or (>= <-index text-length) (>= >-index text-length)) text)
-      (else (string-append
-        (substring text 0 <-index)
-        (remove-tags (substring text (+ >-index 1) text-length))))))))
+      ((bytes=? #"" bytes) #"")
+      ((or (>= <-index text-length) (>= >-index text-length)) bytes)
+      (else (bytes-append
+        (subbytes bytes 0 <-index)
+        (remove-tags (subbytes bytes (+ >-index 1) text-length))))))))
 
-(define get-article (lambda (text)
+(define get-article (lambda (bytes)
   (let
-    ((article-begin (get-str-index "<article" text))
-    (article-end (get-str-index "</article>" text)))
-    (substring text article-begin article-end))))
+    ((article-begin (get-bytes-index #"<article" bytes))
+    (article-end (get-bytes-index #"</article>" bytes)))
+    (subbytes bytes article-begin article-end))))
 
 (define show-word-info (lambda (word)
   (display (remove-tags (get-article (get-page word))))))
